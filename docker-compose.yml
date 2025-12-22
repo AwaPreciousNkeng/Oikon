@@ -1,0 +1,117 @@
+services:
+  # --- DATABASES (Isolated per Service) ---
+  auth-db:
+    image: postgres
+    container_name: oikon-auth-db
+    environment:
+      POSTGRES_USER: pcodes
+      POSTGRES_PASSWORD: pcodes
+      POSTGRES_DB: auth_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pcodes -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oikon-network
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+
+  ledger-db:
+    image: postgres
+    container_name: oikon-ledger-db
+    environment:
+      POSTGRES_USER: pcodes
+      POSTGRES_PASSWORD: pcodes
+      POSTGRES_DB: ledger_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pcodes -d ledger_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oikon-network
+    volumes:
+      - ledger_data:/var/lib/postgresql/data
+
+  audit-db:
+    image: mongo:latest
+    container_name: oikon-audit-db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: pcodes
+      MONGO_INITDB_ROOT_PASSWORD: pcodes
+    volumes:
+      - audit_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - oikon-network
+
+  # --- PERFORMANCE & CACHING ---
+  oikon-redis:
+    image: redis
+    container_name: oikon-redis
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - oikon-network
+
+  # --- MESSAGING (Kafka) ---
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - oikon-network
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - oikon-network
+
+
+  # --- EMAIL TESTING---
+
+  oikon-mailpit:
+    image: axllent/mailpit:latest
+    container_name: oikon-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # Web UI: http://localhost:8025
+      - "1025:1025" # SMTP Port: Java apps send it here
+    environment:
+      - MP_MAX_MESSAGES=5000
+      - MP_DATABASE=/data/mailpit.db # Persists emails across restarts
+    volumes:
+      - ./data/mailpit:/data
+    networks:
+      - oikon-network
+networks:
+  oikon-network:
+    driver: bridge
+
+volumes:
+  auth_data:
+  ledger_data:
+  audit_data:
+  redis_data:

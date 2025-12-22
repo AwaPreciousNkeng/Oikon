@@ -1,0 +1,36 @@
+spring:
+  data:
+    mongodb:
+      username: pcodes
+      password: pcodes
+      host: localhost
+      port: 27017
+      database: notification
+      authentication-database: admin
+  kafka:
+    consumer:
+      bootstrap-servers: localhost:9092
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: '*'
+        spring.json.type.mapping: orderConfirmation:com.codewithpcodes.ecommerce.kafka.OrderConfirmation,paymentConfirmation:com.codewithpcodes.ecommerce.notification.PaymentNotificationRequest;
+#      group-id: notificationGroup
+      auto-offset-reset: earliest
+  mail:
+    host: localhost
+    port: 1025
+    username: pcodes
+    password: pcodes
+    properties:
+      mail:
+        smtp:
+          trust: "*"
+        auth: true
+        starttls:
+          enabled: true
+          connectiontimeout: 5000
+          timeout: 3000
+          writetimeout: 5000
+server:
+  port: 8040
