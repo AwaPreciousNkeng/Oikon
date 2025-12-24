@@ -6,3 +6,10 @@ spring:
 logging:
   level:
     org.springframework.security: TRACE
+application:
+  security:
+    jwt:
+      secret: "EYN2HM6+FEzDbLicbQ5SE3O027jLSFyz/PE/AIePawg="
+      expiration: 86400000 # 1 day
+      refresh-token:
+        expiration: 604800000 # 7 days

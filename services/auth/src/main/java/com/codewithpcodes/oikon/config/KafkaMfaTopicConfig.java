@@ -6,10 +6,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
 
 @Configuration
-public class KafkaOtpTopicConfig {
+public class KafkaMfaTopicConfig {
 
     @Bean
-    public NewTopic otpTopic() {
+    public NewTopic mfaTopic() {
         return TopicBuilder
                 .name("otp-notification-topic")
                 .build();

@@ -1,6 +1,5 @@
 package com.codewithpcodes.oikon.kafka;
 
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;

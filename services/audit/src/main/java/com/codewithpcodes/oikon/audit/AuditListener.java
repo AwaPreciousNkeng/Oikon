@@ -11,6 +11,7 @@ import java.time.Instant;
 @RequiredArgsConstructor
 @Slf4j
 public class AuditListener {
+
     private final AuditLogRepository auditLogRepository;
     private final AuditSignatureService auditSignatureService;
 
@@ -19,26 +20,33 @@ public class AuditListener {
             groupId = "audit-service-group",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void handleAuditEvent(AuditEventMessage evenData) {
-        log.info("Received audit event: {}", evenData);
+    public void handleAuditEvent(AuditEventMessage eventData) {
+        log.info("Processing audit event: [{}] - [{}]", eventData.service(), eventData.action());
 
-        AuditLog auditLog = AuditLog.builder()
-                .serviceName(evenData.service())
-                .action(evenData.action())
-                .username(evenData.username())
-                .status(AuditStatus.valueOf(evenData.status()))
-                .metadata(evenData.metadata())
-                .traceId(evenData.traceId())
-                .timestamp(Instant.now())
-                .build();
+        try {
+            AuditLog auditLog = AuditLog.builder()
+                    .serviceName(eventData.service())
+                    .action(eventData.action())
+                    .username(eventData.username())
+                    .status(AuditStatus.valueOf(eventData.status())) // String -> Enum
+                    .metadata(eventData.metadata())
+                    .traceId(eventData.traceId())
+                    .timestamp(Instant.now())
+                    .build();
 
-        auditLog.setSignature(auditSignatureService.sign(auditLog));
-        auditLogRepository.save(auditLog)
-                .doOnSuccess(saved ->
-                        log.debug("Audit log saved successfully: [{}]", saved))
-                .doOnError(error ->
-                        log.error("Failed to persist audit log: ", error))
-                .subscribe();
+            // 1. Sign the log (Tamper-Proofing)
+            String signature = auditSignatureService.sign(auditLog);
+            auditLog.setSignature(signature);
 
+            // If MongoDB fails, this throws an exception, and Kafka will retry the message.
+            auditLogRepository.save(auditLog).block();
+
+            log.debug("Audit log persisted successfully.");
+
+        } catch (Exception e) {
+            log.error("Failed to process audit event. Message will be retried. Error: {}", e.getMessage());
+            // Rethrowing ensures Kafka doesn't commit the offset, triggering a retry
+            throw new RuntimeException("Audit Persistence Failed", e);
+        }
     }
 }
