@@ -1,4 +1,4 @@
-package com.codewithpcodes.oikon.mfa;
+package com.codewithpcodes.oikon.domainEvents;
 
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;

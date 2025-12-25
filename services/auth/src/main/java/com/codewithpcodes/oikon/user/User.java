@@ -1,6 +1,6 @@
 package com.codewithpcodes.oikon.user;
 
-import com.codewithpcodes.oikon.email.EmailVerificationToken;
+import com.codewithpcodes.oikon.email.EmailNotification;
 import jakarta.persistence.*;
 import lombok.*;
 import org.jspecify.annotations.Nullable;
@@ -8,7 +8,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
-import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -60,7 +59,7 @@ public class User implements UserDetails {
     private Instant emailVerifiedAt;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<EmailVerificationToken> emailVerificationTokens;
+    private List<EmailNotification> emailVerificationTokens;
 
     @Column(updatable = false, nullable = false)
     private Instant createdAt;

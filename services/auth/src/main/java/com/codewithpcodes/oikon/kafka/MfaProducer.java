@@ -12,10 +12,10 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @Slf4j
 public class MfaProducer {
-    private final KafkaTemplate<String, OtpNotificationRequest> kafkaTemplate;
-    public void sendOtpNotification(OtpNotificationRequest otpNotificationRequest) {
-        log.info("Sending OTP notification");
-        Message<OtpNotificationRequest> message = MessageBuilder
+    private final KafkaTemplate<String, EmailNotificationRequest> kafkaTemplate;
+    public void sendOtpNotification(EmailNotificationRequest otpNotificationRequest) {
+        log.info("Sending OTP email notification");
+        Message<EmailNotificationRequest> message = MessageBuilder
                 .withPayload(otpNotificationRequest)
                 .setHeader(KafkaHeaders.TOPIC, "otp-notification-topic")
                 .setHeader("source", "auth-service")

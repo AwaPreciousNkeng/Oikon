@@ -3,7 +3,7 @@ package com.codewithpcodes.oikon.auth;
 import com.codewithpcodes.oikon.config.JwtService;
 import com.codewithpcodes.oikon.exception.DuplicateResourceException;
 import com.codewithpcodes.oikon.kafka.AuditProducer;
-import com.codewithpcodes.oikon.mfa.MfaTokenGeneratedEvent;
+import com.codewithpcodes.oikon.domainEvents.MfaTokenGeneratedEvent;
 import com.codewithpcodes.oikon.mfa.PinOneTimeTokenService;
 import com.codewithpcodes.oikon.user.Role;
 import com.codewithpcodes.oikon.user.User;
@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 
@@ -64,6 +65,7 @@ public class AuthenticationService {
                 .role(Role.USER)
                 .mfaEnabled(true)
                 .enabled(true)
+                .emailVerified(false)
                 .accountNonLocked(true)
                 .failedLoginAttempts(0)
                 .build();
@@ -189,8 +191,8 @@ public class AuthenticationService {
     // =========================================================
     public AuthenticationResponse verifyCode(VerifyRequest request) {
 
-        String combineToken = request.getEmail() + ":" + request.getPin();
-        var authRequest = new OneTimeTokenAuthenticationToken(combineToken);
+        String combinedToken = request.getEmail() + ":" + request.getPin();
+        var authRequest = new OneTimeTokenAuthenticationToken(combinedToken);
 
         var token = ottService.consume(authRequest);
 
@@ -198,7 +200,7 @@ public class AuthenticationService {
             auditProducer.recordEvent(
                     SERVICE,
                     "MFA_OTP_FAILED",
-                    combineToken,
+                    combinedToken,
                     "FAILURE",
                     Map.of("failureReason", "Token is invalid or expired")
             );
@@ -211,7 +213,7 @@ public class AuthenticationService {
         auditProducer.recordEvent(
                 SERVICE,
                 "MFA_OTP_VERIFIED",
-                combineToken,
+                combinedToken,
                 "SUCCESS",
                 null
         );
@@ -311,7 +313,7 @@ public class AuthenticationService {
         user.setFailedLoginAttempts(attempts);
         if (attempts >= 5) {
             user.setAccountNonLocked(false);
-            user.setLockUntil(Instant.now().plusSeconds(900));
+            user.setLockUntil(Instant.now().plus(Duration.ofMinutes(15)));
             auditProducer.recordEvent(
                     SERVICE,
                     "ACCOUNT_LOCKED",

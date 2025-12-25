@@ -6,12 +6,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
 
 @Configuration
-public class KafkaMfaTopicConfig {
+public class KafkaEmailNotificationTopicConfig {
 
     @Bean
-    public NewTopic mfaTopic() {
+    public NewTopic emailNotificationTopic() {
         return TopicBuilder
-                .name("otp-notification-topic")
+                .name("notification.emails")
+                .partitions(3)
+                .replicas(1)
                 .build();
     }
 }

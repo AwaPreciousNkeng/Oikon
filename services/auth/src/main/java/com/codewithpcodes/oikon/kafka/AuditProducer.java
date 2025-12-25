@@ -15,14 +15,15 @@ import java.util.UUID;
 @Slf4j
 @RequiredArgsConstructor
 public class AuditProducer {
+    private static final String TOPIC = "audit.events";
 
     private final KafkaTemplate<String, AuditEventMessage> kafkaTemplate;
-    private static final String TOPIC = "audit.events";
+
 
     /**
      * Publishes an audit log to Kafka asynchronously.
-     * @param service Name of the microservice (e.g., "LEDGER-SERVICE")
-     * @param action Business action (e.g., "TRANSFER_INITIATED")
+     * @param service Name of the microservice
+     * @param action Business action
      * @param username Who performed the action
      * @param status Result of the action (SUCCESS, FAILURE, SECURITY_ALERT)
      * @param metadata Extra details (Amount, IP Address, Recipient ID)
