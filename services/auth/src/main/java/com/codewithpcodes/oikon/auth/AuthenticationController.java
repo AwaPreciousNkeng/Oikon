@@ -49,7 +49,7 @@ public class AuthenticationController {
      * Consumes the 6-digit PIN sent to Email/SMS.
      * Returns: Final JWT Access Tokens.
      */
-    @PostMapping("/verify")
+    @PostMapping("/verify-otp")
     public ResponseEntity<AuthenticationResponse> verify(
             @Valid @RequestBody VerifyRequest request
     ) {
@@ -67,5 +67,14 @@ public class AuthenticationController {
             HttpServletResponse response
     ) throws IOException {
         service.refreshToken(request, response);
+    }
+
+    /**
+     * Endpoint for refreshing the JWT access token using a valid refresh token.
+     * The service handles reading the token from the header and writing the response.
+     */
+    @PostMapping("/verify-email")
+    public void verifyEmailVerificationToken(@RequestBody @Valid VerifyRequest request) {
+        service.verifyEmailVerificationToken(request);
     }
 }

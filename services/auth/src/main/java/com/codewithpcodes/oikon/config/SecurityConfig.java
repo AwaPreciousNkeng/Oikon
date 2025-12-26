@@ -1,6 +1,6 @@
 package com.codewithpcodes.oikon.config;
 
-import com.codewithpcodes.oikon.mfa.PinOneTimeTokenService;
+import com.codewithpcodes.oikon.utils.PinOneTimeTokenService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.ott.OneTimeTokenService;

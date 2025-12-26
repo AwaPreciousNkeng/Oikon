@@ -1,10 +1,13 @@
 package com.codewithpcodes.oikon.auth;
 
 import com.codewithpcodes.oikon.config.JwtService;
+import com.codewithpcodes.oikon.domainEvents.EmailVerificationRequestedEvent;
 import com.codewithpcodes.oikon.exception.DuplicateResourceException;
 import com.codewithpcodes.oikon.kafka.AuditProducer;
 import com.codewithpcodes.oikon.domainEvents.MfaTokenGeneratedEvent;
-import com.codewithpcodes.oikon.mfa.PinOneTimeTokenService;
+import com.codewithpcodes.oikon.utils.EmailVerificationTokenResponse;
+import com.codewithpcodes.oikon.utils.PinEmailVerificationTokenService;
+import com.codewithpcodes.oikon.utils.PinOneTimeTokenService;
 import com.codewithpcodes.oikon.user.Role;
 import com.codewithpcodes.oikon.user.User;
 import com.codewithpcodes.oikon.user.UserRepository;
@@ -41,6 +44,7 @@ public class AuthenticationService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final PinOneTimeTokenService ottService;
+    private final PinEmailVerificationTokenService emailVerificationService;
     private final ApplicationEventPublisher eventPublisher;
     private final AuditProducer auditProducer;
 
@@ -71,9 +75,19 @@ public class AuthenticationService {
                 .build();
 
         repository.save(user);
+        EmailVerificationTokenResponse verificationTokenResponse = emailVerificationService.generateToken(request.email());
+        if (verificationTokenResponse.token() != null) {
+            eventPublisher.publishEvent(
+                    new EmailVerificationRequestedEvent(
+                            this,
+                            user.getEmail(),
+                            verificationTokenResponse.token()
+                    )
+            );
+        }
         auditProducer.recordEvent(
                 SERVICE,
-                "REGISTRATION_SUCCESSFUL",
+                "EMAIL_VERIFICATION_SENT & REGISTRATION_SUCCESSFUL",
                 request.email(),
                 "SUCCESS",
                 null
@@ -222,7 +236,39 @@ public class AuthenticationService {
     }
 
     // =========================================================
-    // 6. REFRESH TOKEN (POST-MFA ONLY)
+    // 6. VERIFY EMAIL VERIFICATION
+    // =========================================================
+
+    public void verifyEmailVerificationToken(VerifyRequest request) {
+        var verificationTokenResponse = emailVerificationService.consumeToken(request.getEmail(), request.getPin());
+        String token = verificationTokenResponse.token();
+        String combinedToken = request.getEmail() + ":" + request.getPin();
+        if (token == null) {
+            auditProducer.recordEvent(
+                    SERVICE,
+                    "EMAIL_VERIFICATION_FAILED",
+                    combinedToken,
+                    "FAILURE",
+                    Map.of("failureReason", "Token is invalid or expired")
+            );
+            throw new BadCredentialsException("Invalid or expired PIN");
+        }
+
+        User user = repository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        user.setEmailVerified(true);
+        repository.save(user);
+        auditProducer.recordEvent(
+                SERVICE,
+                "EMAIL_VERIFIED_SUCCESSFULLY",
+                combinedToken,
+                "SUCCESS",
+                null
+        );
+    }
+    // =========================================================
+    // 7. REFRESH TOKEN (POST-MFA ONLY)
     // =========================================================
     public void refreshToken(
             HttpServletRequest request,
@@ -349,4 +395,6 @@ public class AuthenticationService {
         }
         return false;
     }
+
+
 }

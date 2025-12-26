@@ -1,4 +1,4 @@
-package com.codewithpcodes.oikon.mfa;
+package com.codewithpcodes.oikon.utils;
 
 
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ public class PinOneTimeTokenService implements OneTimeTokenService {
     private static final String RATE_PREFIX = "oikon:mfa:rate:";
     private static final int MAX_GENERATION_ATTEMPTS = 5;
     private static final int MAX_OTPS_PER_WINDOW = 3;
-    private Duration rateWindow = Duration.ofMinutes(5);
+    private final Duration rateWindow = Duration.ofMinutes(5);
     private Duration tokenExpiresIn = Duration.ofMinutes(5);
 
     @Override
@@ -89,10 +89,12 @@ public class PinOneTimeTokenService implements OneTimeTokenService {
         this.tokenExpiresIn = tokenExpiresIn;
     }
 
+/*
     public void setRateWindow(Duration rateWindow) {
         Assert.notNull(rateWindow, "rateWindow cannot be null");
         this.rateWindow = rateWindow;
     }
+*/
 
     private String generatePin() {
         return String.format("%06d", secureRandom.nextInt(1_000_000));
