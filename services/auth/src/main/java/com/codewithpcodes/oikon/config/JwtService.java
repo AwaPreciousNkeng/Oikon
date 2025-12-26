@@ -22,10 +22,10 @@ public class JwtService {
     private String secretKey;
 
     @Value("application.security.jwt.expiration")
-    private Long jwtExpiration;
+    private String jwtExpiration;
 
     @Value("application.security.jwt.refresh-token.expiration")
-    private long refreshExpiration;
+    private String refreshExpiration;
 
     /**
      * Extracts the username (Subject claim) from a given JWT.
@@ -113,7 +113,7 @@ public class JwtService {
             Map<String, Object> extraClaims,
             UserDetails userDetails
     ) {
-        return buildToken(extraClaims, userDetails, jwtExpiration);
+        return buildToken(extraClaims, userDetails, Long.valueOf(jwtExpiration));
     }
 
     /**
@@ -141,7 +141,7 @@ public class JwtService {
     public String generateRefreshToken(
             UserDetails userDetails
     ) {
-        return buildToken(new HashMap<>(), userDetails, refreshExpiration);
+        return buildToken(new HashMap<>(), userDetails, Long.valueOf(refreshExpiration));
     }
 
     /**
