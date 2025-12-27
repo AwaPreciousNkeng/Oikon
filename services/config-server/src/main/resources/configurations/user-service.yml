@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/payment
+    url: jdbc:postgresql://localhost:5432/user
     username: pcodes
     password: pcodes
     driver-class-name: org.postgresql.Driver
@@ -18,3 +18,4 @@ spring:
         spring.json.type.mapping: paymentConfirmation:com.codewithpcodes.ecommerce.notification.PaymentNotificationRequest;
 server:
   port: 8060
+
