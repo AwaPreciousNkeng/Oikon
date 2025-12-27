@@ -16,22 +16,11 @@ import java.util.UUID;
 @NoArgsConstructor
 @Entity
 @Builder
-@Table(
-        name = "users",
-        indexes = {
-        @Index(name = "idx_user_email", columnList = "email")
-})
+@Table(name = "auth")
 public class User implements UserDetails {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @Column(nullable = false)
-    private String firstName;
-
-    @Column(nullable = false)
-    private String lastName;
 
     @Column(unique = true, nullable = false)
     private String email;
