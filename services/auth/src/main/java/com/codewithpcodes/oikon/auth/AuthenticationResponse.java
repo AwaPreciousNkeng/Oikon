@@ -15,6 +15,4 @@ public class AuthenticationResponse {
     private String accessToken;
     @JsonProperty("refresh_token")
     private String refreshToken;
-    @JsonProperty("mfa_enabled")
-    private boolean mfaEnabled; // Tells frontend to redirect to the OTP screen
 }

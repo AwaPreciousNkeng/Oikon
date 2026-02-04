@@ -19,7 +19,7 @@ import java.io.IOException;
 public class AuthenticationController {
 
     private final AuthenticationService service;
-    /**
+    /*
      * Endpoint for user registration.
      */
     @PostMapping("/register")
@@ -30,11 +30,9 @@ public class AuthenticationController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    /**
-     * 2. AUTHENTICATE (Login Phase 1)
+    /*
+     * 2. AUTHENTICATE
      * Checks Email & Password. Checks if Account is Locked.
-     * Triggers MFA if enabled.
-     * Returns: { "mfa_enabled": true } if PIN sent, OR Tokens if no MFA.
      */
     @PostMapping("/authenticate")
     public ResponseEntity<AuthenticationResponse> authenticate(
@@ -42,18 +40,6 @@ public class AuthenticationController {
     ) {
         // If authentication fails, the AuthenticationManager handles the exception (e.g., returns 401 Unauthorized)
         return ResponseEntity.ok(service.authenticate(request));
-    }
-
-    /**
-     * 3. VERIFY (Login Phase 2)
-     * Consumes the 6-digit PIN sent to Email/SMS.
-     * Returns: Final JWT Access Tokens.
-     */
-    @PostMapping("/verify-otp")
-    public ResponseEntity<AuthenticationResponse> verify(
-            @Valid @RequestBody VerifyRequest request
-    ) {
-        return ResponseEntity.ok(service.verifyCode(request));
     }
 
 

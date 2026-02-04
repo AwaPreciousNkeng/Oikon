@@ -27,28 +27,22 @@ public class JwtService {
     @Value("application.security.jwt.refresh-token.expiration")
     private String refreshExpiration;
 
-    /**
+    /*
      * Extracts the username (Subject claim) from a given JWT.
-     * @param token The JWT string.
-     * @return The username.
      */
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    /**
+    /*
      * Extracts a specific claim from the JWT using a resolver function.
-     * @param token The JWT string.
-     * @param claimsResolver Function to resolve the desired claim (e.g., Claims::getExpiration).
-     * @return The resolved claim value.
-     * @param <T> The type of the claim value.
      */
     private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
-    /**
+    /*
      * Parses the JWT, verifies the signature, and extracts the claims payload.
      * It uses the non-deprecated .verifyWith(Key) method.
      */
@@ -61,15 +55,9 @@ public class JwtService {
                 .getPayload();
     }
 
-    /**
+    /*
      * Decodes the Base64 secret key and creates an HMAC-SHA SecretKey for signing/verification.
-     * @return The SecretKey.
      */
-    // required imports:
-// import io.jsonwebtoken.io.Decoders;
-// import io.jsonwebtoken.security.Keys;
-// import javax.crypto.SecretKey;
-// import java.nio.charset.StandardCharsets;
 
     private SecretKey getSignInKey() {
         byte[] keyBytes;
@@ -99,14 +87,14 @@ public class JwtService {
     }
 
 
-    /**
+    /*
      * Generates a standard access token with no extra claims.
      */
     public String generateToken(UserDetails userDetails) {
         return generateToken(new HashMap<>(), userDetails);
     }
 
-    /**
+    /*
      * Generates a standard access token with custom extra claims.
      */
     public String generateToken(
@@ -116,7 +104,7 @@ public class JwtService {
         return buildToken(extraClaims, userDetails, Long.valueOf(jwtExpiration));
     }
 
-    /**
+    /*
      * The core method to build and sign a JWT string.
      * It uses the non-deprecated .signWith(Key) method.
      */
@@ -135,7 +123,7 @@ public class JwtService {
                 .compact();
     }
 
-    /**
+    /*
      * Generates a refresh token.
      */
     public String generateRefreshToken(
@@ -144,7 +132,7 @@ public class JwtService {
         return buildToken(new HashMap<>(), userDetails, Long.valueOf(refreshExpiration));
     }
 
-    /**
+    /*
      * Validates if the token is valid for the given user (username match and not expired).
      */
     public boolean isTokenValid(String token, UserDetails userDetails) {
@@ -152,7 +140,7 @@ public class JwtService {
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
     }
 
-    /**
+    /*
      * Checks if the token's expiration date is before the current date.
      */
     private boolean isTokenExpired(String token) {

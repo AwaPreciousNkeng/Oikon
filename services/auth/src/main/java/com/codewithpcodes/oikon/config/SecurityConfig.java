@@ -13,10 +13,6 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
-@EnableMultiFactorAuthentication(authorities = {
-        FactorGrantedAuthority.PASSWORD_AUTHORITY,
-        FactorGrantedAuthority.OTT_AUTHORITY
-})
 public class SecurityConfig {
 
     @Bean
@@ -32,7 +28,6 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                 )
-                .oneTimeTokenLogin(Customizer.withDefaults())
                 .build();
     }
 }

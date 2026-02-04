@@ -1,4 +1,7 @@
 spring:
+  servlet:
+    multipart:
+      max-file-size: 50MB
   kafka:
     consumer:
       bootstrap-servers: localhost:9092
@@ -12,12 +15,9 @@ spring:
     name: user-service
   config:
     import: optional:configserver:http://localhost:8888
-#    consumer:
-#      bootstrap-servers: localhost:9092
-#      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-#      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-#      properties:
-#        spring.json.trusted.packages: '*'
-#        spring.json.type.mapping: orderConfirmation:com.codewithpcodes.ecommerce.kafka.OrderConfirmation,paymentConfirmation:com.codewithpcodes.ecommerce.notification.PaymentNotificationRequest;
-#      #      group-id: notificationGroup
-#      auto-offset-reset: earliest
+springdoc:
+  default-produces-media-type: application/json
+application:
+  file:
+    uploads:
+      media-output-path: ./uploads

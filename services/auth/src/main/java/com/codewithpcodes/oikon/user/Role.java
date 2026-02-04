@@ -16,15 +16,14 @@ import static com.codewithpcodes.oikon.user.Permission.*;
 public enum Role {
 
     USER(Set.of()),
+    BUSINESS(Set.of()),
 
     ADMIN(Set.of(
             ADMIN_READ,
             ADMIN_UPDATE,
             ADMIN_CREATE,
             ADMIN_DELETE
-    )),
-
-    SYSTEM(Collections.emptySet());
+    ));
 
     private final Set<Permission> permissions;
 

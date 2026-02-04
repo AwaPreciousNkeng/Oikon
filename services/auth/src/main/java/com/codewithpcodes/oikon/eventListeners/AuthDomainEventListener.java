@@ -2,9 +2,8 @@ package com.codewithpcodes.oikon.eventListeners;
 
 import com.codewithpcodes.oikon.domainEvents.EmailVerificationRequestedEvent;
 import com.codewithpcodes.oikon.domainEvents.MfaTokenGeneratedEvent;
-import com.codewithpcodes.oikon.kafka.EmailNotificationProducer;
-import com.codewithpcodes.oikon.kafka.EmailNotificationRequest;
-import com.codewithpcodes.oikon.kafka.EmailNotificationType;
+import com.codewithpcodes.oikon.domainEvents.UserCreationEvent;
+import com.codewithpcodes.oikon.kafka.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -19,30 +18,7 @@ import java.util.UUID;
 public class AuthDomainEventListener {
 
     private final EmailNotificationProducer emailNotificationProducer;
-
-    //We'll run this in a separate thread so the user doesn't have to wait
-    @Async
-    @EventListener
-    public void handleMfaTokenEvent(MfaTokenGeneratedEvent event) {
-
-        String traceId = UUID.randomUUID().toString();
-
-        //1. Prepare the payload
-        var requestBuilder = new EmailNotificationRequest(
-                event.getUsername(),
-                event.getPin(),
-                EmailNotificationType.MFA_TOKEN_GENERATION,
-                "Multifactor Authentication Token",
-                traceId
-        );
-
-        try {
-            emailNotificationProducer.sendEmailNotification(requestBuilder);
-            log.info("MFA OTP sent to user: {} with traceId: {}", event.getUsername(), traceId);
-        } catch (Exception e) {
-            log.error("Failed to send MFA OTP to user: {}", event.getUsername(), e);
-        }
-    }
+    private final UserCreationProducer userCreationProducer;
 
     @Async
     @EventListener
@@ -62,6 +38,34 @@ public class AuthDomainEventListener {
             log.info("Email verification email sent to user: {} with traceId: {}", event.getUsername(), traceId);
         } catch (Exception e) {
             log.error("Failed to send email verification email to user: {}", event.getUsername(), e);
+        }
+    }
+
+    @Async
+    @EventListener
+    public void handleUserCreationEvent(UserCreationEvent event) {
+
+        String traceId = UUID.randomUUID().toString();
+        var requestBuilder = new UserCreationRequest(
+                event.getUserId(),
+                event.getFirstName(),
+                event.getLastName(),
+                event.getLastName(),
+                event.getPhoneNumber(),
+                event.getDateOfBirth(),
+                event.getZipCode(),
+                event.getStreet(),
+                event.getCity(),
+                event.getState(),
+                event.getCountry(),
+                traceId
+        );
+
+        try {
+            userCreationProducer.sendUserCreationInfo(requestBuilder);
+            log.info("User creation information sent to user: {} with traceId: {}", event.getUserId(), traceId);
+        } catch (Exception e) {
+            log.error("Failed to send user creation information to user: {}", event.getUserId(), e);
         }
     }
 }

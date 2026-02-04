@@ -29,6 +29,8 @@ public class User {
     @Column(unique = true)
     private String phoneNumber;
 
+    private String profileImageUrl;
+
     @Enumerated(EnumType.STRING)
     private UserStatus status;
 

@@ -32,10 +32,6 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Role role;
 
-    private boolean mfaEnabled;
-
-    private String mfaSecretEncrypted;
-
     private boolean accountNonLocked = true;
     private boolean enabled = true;
 
@@ -43,6 +39,8 @@ public class User implements UserDetails {
     private Instant lockUntil;
 
     private boolean emailVerified = false;
+
+    private boolean phoneVerified = false;
 
     @Column(updatable = false, nullable = false)
     private Instant createdAt;

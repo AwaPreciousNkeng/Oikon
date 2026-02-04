@@ -23,11 +23,9 @@ public class ApplicationConfig {
 
     private final UserRepository repository;
 
-    /**
+    /*
      * Defines the strategy for retrieving user details from the database.
      * Overrides the default in-memory user details service.
-     *
-     * @return UserDetailsService implementation.
      */
     @Bean
     public UserDetailsService userDetailsService() {
@@ -47,34 +45,26 @@ public class ApplicationConfig {
     }
 
 
-    /**
+    /*
      * Defines the AuditorAware for Spring Data JPA Auditing.
      * This is used to automatically populate the 'created by' and 'last modified by' fields.
-     *
-     * @return AuditorAware implementation (ApplicationAuditAware).
      */
     @Bean
     public AuditorAware<UUID> auditorAware() {
         return new ApplicationAuditAware();
     }
 
-    /**
+    /*
      * Exposes the AuthenticationManager bean, which is crucial for performing authentication,
      * typically used in the AuthenticationController (login/register).
-     *
-     * @param config The AuthenticationConfiguration injected by Spring.
-     * @return The AuthenticationManager.
-     * @throws Exception if configuration fails.
      */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-    /**
+    /*
      * Defines the PasswordEncoder bean, using BCrypt, the recommended hashing algorithm.
-     *
-     * @return BCryptPasswordEncoder instance.
      */
     @Bean
     public PasswordEncoder passwordEncoder() {

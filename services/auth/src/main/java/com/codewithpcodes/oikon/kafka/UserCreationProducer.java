@@ -8,32 +8,28 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
-
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class EmailNotificationProducer {
-    private static final String TOPIC = "notification.emails";
+public class UserCreationProducer {
+    private static final String TOPIC = "user.creation";
 
-    private final KafkaTemplate<String, EmailNotificationRequest> kafkaTemplate;
+    private final KafkaTemplate<String, UserCreationRequest> kafkaTemplate;
 
-    public void sendEmailNotification(EmailNotificationRequest payload) {
+    public void sendUserCreationInfo(UserCreationRequest payload) {
 
-
-
-        Message<EmailNotificationRequest> message = MessageBuilder
+        Message<UserCreationRequest> message = MessageBuilder
                 .withPayload(payload)
                 .setHeader(KafkaHeaders.TOPIC, TOPIC)
                 .setHeader(KafkaHeaders.KEY, payload.traceId())
                 .build();
 
         kafkaTemplate.send(message)
-                .whenComplete((result, ex) -> {
+                .whenComplete((res, ex) -> {
                     if (ex != null) {
-                        log.error("Failed to send email notification to Kafka {}", ex.getMessage());
+                        log.error("Failed to send user creation information to Kafka {}", ex.getMessage());
                     } else {
-                        log.debug("Email notification sent to Kafka with trace ID: {}", payload.traceId());
+                        log.debug("User information sent to Kafka with trace ID {}", payload.traceId());
                     }
                 });
     }

@@ -13,6 +13,12 @@ public enum Permission {
     USER_UPDATE("user:update"),
     USER_DELETE("user:delete"),
 
+    // Business Management
+    BUSINESS_READ("business:read"),
+    BUSINESS_UPDATE("business:update"),
+    BUSINESS_CREATE("business:create"),
+    BUSINESS_DELETE("business:delete"),
+
     // ===== Audit =====
     AUDIT_READ("audit:read"),
     AUDIT_EXPORT("audit:export"),

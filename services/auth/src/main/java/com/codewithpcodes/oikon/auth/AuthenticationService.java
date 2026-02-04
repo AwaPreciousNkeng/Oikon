@@ -4,10 +4,8 @@ import com.codewithpcodes.oikon.config.JwtService;
 import com.codewithpcodes.oikon.domainEvents.EmailVerificationRequestedEvent;
 import com.codewithpcodes.oikon.exception.DuplicateResourceException;
 import com.codewithpcodes.oikon.kafka.AuditProducer;
-import com.codewithpcodes.oikon.domainEvents.MfaTokenGeneratedEvent;
 import com.codewithpcodes.oikon.utils.EmailVerificationTokenResponse;
 import com.codewithpcodes.oikon.utils.PinEmailVerificationTokenService;
-import com.codewithpcodes.oikon.utils.PinOneTimeTokenService;
 import com.codewithpcodes.oikon.user.Role;
 import com.codewithpcodes.oikon.user.User;
 import com.codewithpcodes.oikon.user.UserRepository;
@@ -16,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
@@ -39,11 +38,11 @@ public class AuthenticationService {
 
     private static final String SERVICE = "AUTH-SERVICE";
 
+    private final RedisTemplate<String, Object> redisTemplate;
     private final UserRepository repository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-    private final PinOneTimeTokenService ottService;
     private final PinEmailVerificationTokenService emailVerificationService;
     private final ApplicationEventPublisher eventPublisher;
     private final AuditProducer auditProducer;
@@ -67,7 +66,6 @@ public class AuthenticationService {
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
                 .role(Role.USER)
-                .mfaEnabled(true)
                 .enabled(true)
                 .emailVerified(false)
                 .accountNonLocked(true)
@@ -75,6 +73,16 @@ public class AuthenticationService {
                 .build();
 
         repository.save(user);
+
+        CachedAuthUser cachedUser = CachedAuthUser.builder()
+                .userId(user.getId())
+                .email(request.email())
+                .role(user.getRole())
+                .accountNonLocked(user.isAccountNonLocked())
+                .emailVerified(false)
+                .build();
+        redisTemplate.opsForValue().set("auth:user:" + request.email(), cachedUser, Duration.ofMinutes(10));
+
         EmailVerificationTokenResponse verificationTokenResponse = emailVerificationService.generateToken(request.email());
         if (verificationTokenResponse.token() != null) {
             eventPublisher.publishEvent(
@@ -93,11 +101,13 @@ public class AuthenticationService {
                 null
         );
 
-        // No token issuance on registration
+        // Issue the tokens
+        var jwtToken = jwtService.generateToken(user);
+        var refreshToken = jwtService.generateRefreshToken(user);
+
         return AuthenticationResponse.builder()
-                .accessToken(null)
-                .refreshToken(null)
-                .mfaEnabled(user.isMfaEnabled())
+                .accessToken(jwtToken)
+                .refreshToken(refreshToken)
                 .build();
     }
 
@@ -106,6 +116,22 @@ public class AuthenticationService {
     // =========================================================
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
 
+        //We first check the cache for the info
+        String cacheKey = "auth:user:" + request.email();
+        CachedAuthUser cachedUser = (CachedAuthUser) redisTemplate.opsForValue().get(cacheKey);
+
+        if (cachedUser != null && !cachedUser.isAccountNonLocked()) {
+            auditProducer.recordEvent(
+                    SERVICE,
+                    "LOGIN_BLOCKED",
+                    request.email(),
+                    "FAILURE",
+                    Map.of("failureReason", "User account is locked(cache)")
+            );
+            throw new LockedException("User account is locked");
+        }
+
+        // Fetch from the db
         User user = repository.findByEmail(request.email())
                 .orElseThrow(() -> {
                     auditProducer.recordEvent(
@@ -119,7 +145,7 @@ public class AuthenticationService {
                 });
 
         if (!user.isAccountNonLocked()) {
-            if (!unlockIfExpired(user)) {
+            if (!IsAccountAutoUnlocked(user)) {
                 auditProducer.recordEvent(
                         SERVICE,
                         "LOGIN_FAILED",
@@ -127,7 +153,7 @@ public class AuthenticationService {
                         "FAILURE",
                         Map.of(
                                 "failureReason", "Account is locked",
-                                "lockUntil", user.getLockUntil().toString()
+                                "lockUntil", user.getLockUntil()
                         )
                 );
             }
@@ -162,77 +188,18 @@ public class AuthenticationService {
             throw ex;
         }
 
-        // =====================================================
-        // 3. MFA CHALLENGE (HUMANS ONLY)
-        // =====================================================
-        boolean requiresMfa =
-                user.isMfaEnabled() &&
-                        user.getRole() != Role.SYSTEM;
+        //Update cache
+        CachedAuthUser updatedCache = CachedAuthUser.from(user);
+        redisTemplate.opsForValue().set(cacheKey, updatedCache, Duration.ofMinutes(10));
 
-        if (requiresMfa) {
+        // Issue the tokens
+        var accessToken = jwtService.generateToken(user);
+        var refreshToken = jwtService.generateRefreshToken(user);
 
-            var ottRequest = new GenerateOneTimeTokenRequest(user.getEmail());
-            var token = ottService.generate(ottRequest);
-
-            if (token != null) {
-                eventPublisher.publishEvent(
-                        new MfaTokenGeneratedEvent(
-                                this,
-                                user.getEmail(),
-                                token.getTokenValue()
-                        )
-                );
-            }
-
-
-            // auditService.record("MFA_OTP_GENERATED", ...)
-
-            return AuthenticationResponse.builder()
-                    .accessToken(null)
-                    .refreshToken(null)
-                    .mfaEnabled(true)
-                    .build();
-        }
-
-        // =====================================================
-        // 4. NO MFA REQUIRED → ISSUE JWT
-        // =====================================================
-        return issueTokens(user);
-    }
-
-    // =========================================================
-    // 5. MFA VERIFICATION – PHASE 2
-    // =========================================================
-    public AuthenticationResponse verifyCode(VerifyRequest request) {
-
-        String combinedToken = request.getEmail() + ":" + request.getPin();
-        var authRequest = new OneTimeTokenAuthenticationToken(combinedToken);
-
-        var token = ottService.consume(authRequest);
-
-        if (token == null) {
-            auditProducer.recordEvent(
-                    SERVICE,
-                    "MFA_OTP_FAILED",
-                    combinedToken,
-                    "FAILURE",
-                    Map.of("failureReason", "Token is invalid or expired")
-            );
-            throw new BadCredentialsException("Invalid or expired PIN");
-        }
-
-        User user = repository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-        auditProducer.recordEvent(
-                SERVICE,
-                "MFA_OTP_VERIFIED",
-                combinedToken,
-                "SUCCESS",
-                null
-        );
-
-        return issueTokens(user);
+        return AuthenticationResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .build();
     }
 
     // =========================================================
@@ -267,8 +234,9 @@ public class AuthenticationService {
                 null
         );
     }
+
     // =========================================================
-    // 7. REFRESH TOKEN (POST-MFA ONLY)
+    // 7. REFRESH TOKEN
     // =========================================================
     public void refreshToken(
             HttpServletRequest request,
@@ -327,7 +295,6 @@ public class AuthenticationService {
             var authResponse = AuthenticationResponse.builder()
                     .accessToken(accessToken)
                     .refreshToken(refreshToken)
-                    .mfaEnabled(false)
                     .build();
 
             new ObjectMapper().writeValue(
@@ -337,21 +304,10 @@ public class AuthenticationService {
         }
     }
 
+
     // =========================================================
     // INTERNAL HELPERS
     // =========================================================
-
-    private AuthenticationResponse issueTokens(User user) {
-
-        var jwtToken = jwtService.generateToken(user);
-        var refreshToken = jwtService.generateRefreshToken(user);
-
-        return AuthenticationResponse.builder()
-                .accessToken(jwtToken)
-                .refreshToken(refreshToken)
-                .mfaEnabled(false)
-                .build();
-    }
 
     private void increaseFailedAttempts(User user) {
 
@@ -372,7 +328,11 @@ public class AuthenticationService {
         repository.save(user);
     }
 
-    private boolean unlockIfExpired(User user) {
+    /* When the user tries multiple failed login attempts,
+    * the account is locked temporarily and unlocked after some time
+    * So this function checks if the lock period is over then unlocks it
+    */
+    private boolean IsAccountAutoUnlocked(User user) {
         Instant lockUntil = user.getLockUntil();
         if (lockUntil == null) {
             return false;
@@ -395,6 +355,4 @@ public class AuthenticationService {
         }
         return false;
     }
-
-
 }
